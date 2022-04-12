@@ -245,9 +245,9 @@ func packetToLog(pk packet.Packet, send bool) (text string, err error) {
 			return
 		}
 	}
-	count := hiddenReceivePacketsCountAtomic
+	count := &hiddenReceivePacketsCountAtomic
 	if send {
-		count = hiddenSendPacketsCountAtomic
+		count = &hiddenSendPacketsCountAtomic
 	}
 	count.Add(1)
 
