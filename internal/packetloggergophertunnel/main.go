@@ -237,7 +237,7 @@ func packetToLog(pk packet.Packet, send bool) (text string, err error) {
 				err = err2
 				text += err.Error()
 			} else {
-				text += prefix + " BEGIN " + suffix
+				text += prefix + " BEGIN " + suffix + "\n"
 				text += string(pkMarshal)
 				text += prefix + " END " + suffix
 			}
