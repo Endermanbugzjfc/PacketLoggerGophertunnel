@@ -6,8 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
+	"github.com/df-mc/atomic"
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/auth"
@@ -15,6 +17,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
+
+var configAtomic atomic.Value[config]
 
 // The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
@@ -24,6 +28,7 @@ func main() {
 	logrus.SetLevel(logrus.TraceLevel)
 
 	config := readConfig()
+	configAtomic.Store(config)
 	token, err := auth.RequestLiveToken()
 	if err != nil {
 		panic(err)
@@ -133,10 +138,16 @@ type config struct {
 		LocalAddress  string
 		RemoteAddress string
 	}
+	PacketLogger struct {
+		HidePacketType []string
+	}
 }
 
 func readConfig() config {
 	c := config{}
+	c.PacketLogger.HidePacketType = []string{
+		"AvailableActorIdentifiers",
+	}
 	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
 		f, err := os.Create("config.toml")
 		if err != nil {
@@ -173,7 +184,16 @@ func packetToLog(pk packet.Packet) (text string, err error) {
 		prefix = "=========="
 		suffix = " PACKET " + prefix
 	)
-	text += fmt.Sprintf("%T\n", pk)
+	packetTypeName := fmt.Sprintf("%T", pk)
+	text += packetTypeName + "\n"
+
+	c := configAtomic.Load()
+	for _, hidePacketTypeName := range c.PacketLogger.HidePacketType {
+		if strings.Contains(packetTypeName, hidePacketTypeName) {
+			text += "Hidden packet content..."
+			return
+		}
+	}
 
 	if pkMarshal, err2 := toml.Marshal(pk); err != nil {
 		err = err2
