@@ -169,7 +169,6 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			}
 
 			time.Sleep(time.Second)
-
 		}
 	}()
 }
