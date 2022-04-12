@@ -1,70 +1,142 @@
 package main
 
 import (
-	"fmt"
+	"errors"
+	"io/ioutil"
+	"log"
 	"os"
-	"os/signal"
-	"syscall"
+	"sync"
 
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/auth"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
+// The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-	})
-	logrus.SetLevel(logrus.TraceLevel)
-
-	conf := readConfig()
-	logrus.Info("Requesting live token...")
-
-	var tokenSource oauth2.TokenSource
-	if token, err := auth.RequestLiveToken(); err != nil {
+	config := readConfig()
+	token, err := auth.RequestLiveToken()
+	if err != nil {
 		panic(err)
-	} else {
-		logrus.Info("Refreshing token source...")
-		tokenSource = auth.RefreshTokenSource(token)
 	}
+	src := auth.RefreshTokenSource(token)
 
-	logrus.Info("Dialing to remote address...")
-	dialer := minecraft.Dialer{
-		TokenSource: tokenSource,
-	}
-	address := conf.Connection.RemoteAddress
-
-	if connection, err := dialer.Dial("raknet", address); err != nil {
+	p, err := minecraft.NewForeignStatusProvider(config.Connection.RemoteAddress)
+	if err != nil {
 		panic(err)
-	} else {
-		go func(connection *minecraft.Conn) {
-			sigtermChannel := make(chan os.Signal, 2)
-			signal.Notify(sigtermChannel, syscall.SIGINT, syscall.SIGTERM)
-			<-sigtermChannel
+	}
+	listener, err := minecraft.ListenConfig{
+		StatusProvider: p,
+	}.Listen("raknet", config.Connection.LocalAddress)
+	if err != nil {
+		panic(err)
+	}
+	defer listener.Close()
+	for {
+		c, err := listener.Accept()
+		if err != nil {
+			panic(err)
+		}
+		go handleConn(c.(*minecraft.Conn), listener, config, src)
+	}
+}
 
-			logrus.Info("Closing connection...")
-			if err := connection.Close(); err != nil {
-				logrus.Error(err)
-			}
-		}(connection)
+// handleConn handles a new incoming minecraft.Conn from the minecraft.Listener passed.
+func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config config, src oauth2.TokenSource) {
+	serverConn, err := minecraft.Dialer{
+		TokenSource: src,
+		ClientData:  conn.ClientData(),
+	}.Dial("raknet", config.Connection.RemoteAddress)
+	if err != nil {
+		panic(err)
+	}
+	var g sync.WaitGroup
+	g.Add(2)
+	go func() {
+		if err := conn.StartGame(serverConn.GameData()); err != nil {
+			panic(err)
+		}
+		g.Done()
+	}()
+	go func() {
+		if err := serverConn.DoSpawn(); err != nil {
+			panic(err)
+		}
+		g.Done()
+	}()
+	g.Wait()
 
+	go func() {
+		defer listener.Disconnect(conn, "connection lost")
+		defer serverConn.Close()
 		for {
-			if packet, err := connection.ReadPacket(); err != nil {
-				break
-			} else {
-				packetTypeName := fmt.Sprintf("%T\n", packet)
-				if packetMarshal, err := toml.Marshal(packet); err != nil {
-					logrus.Errorf(
-						"%sFailed to print packet as TOML: %s",
-						packetTypeName,
-						err,
-					)
-				} else {
-					logrus.Info(packetTypeName + string(packetMarshal))
+			pk, err := conn.ReadPacket()
+			if err != nil {
+				return
+			}
+			if err := serverConn.WritePacket(pk); err != nil {
+				if disconnect, ok := errors.Unwrap(err).(minecraft.DisconnectError); ok {
+					_ = listener.Disconnect(conn, disconnect.Error())
 				}
+				return
 			}
 		}
+	}()
+	go func() {
+		defer serverConn.Close()
+		defer listener.Disconnect(conn, "connection lost")
+		for {
+			pk, err := serverConn.ReadPacket()
+			if err != nil {
+				if disconnect, ok := errors.Unwrap(err).(minecraft.DisconnectError); ok {
+					_ = listener.Disconnect(conn, disconnect.Error())
+				}
+				return
+			}
+			if err := conn.WritePacket(pk); err != nil {
+				return
+			}
+		}
+	}()
+}
+
+type config struct {
+	Connection struct {
+		LocalAddress  string
+		RemoteAddress string
 	}
+}
+
+func readConfig() config {
+	c := config{}
+	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
+		f, err := os.Create("config.toml")
+		if err != nil {
+			log.Fatalf("error creating config: %v", err)
+		}
+		data, err := toml.Marshal(c)
+		if err != nil {
+			log.Fatalf("error encoding default config: %v", err)
+		}
+		if _, err := f.Write(data); err != nil {
+			log.Fatalf("error writing encoded default config: %v", err)
+		}
+		_ = f.Close()
+	}
+	data, err := ioutil.ReadFile("config.toml")
+	if err != nil {
+		log.Fatalf("error reading config: %v", err)
+	}
+	if err := toml.Unmarshal(data, &c); err != nil {
+		log.Fatalf("error decoding config: %v", err)
+	}
+	if c.Connection.LocalAddress == "" {
+		c.Connection.LocalAddress = "0.0.0.0:19132"
+	}
+	data, _ = toml.Marshal(c)
+	if err := ioutil.WriteFile("config.toml", data, 0644); err != nil {
+		log.Fatalf("error writing config file: %v", err)
+	}
+	return c
 }
