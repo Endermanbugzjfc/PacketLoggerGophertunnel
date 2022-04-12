@@ -6,7 +6,7 @@
 
 run:
   timeout: 1m # default 1m
-  go: ${1:1.18}
+  go: "1.18"
  
 linters-settings:
   errcheck:
