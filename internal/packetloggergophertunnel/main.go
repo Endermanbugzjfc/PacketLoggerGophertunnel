@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/auth"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -75,6 +78,15 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			if err != nil {
 				return
 			}
+
+			pkText, err := packetToLog(pk)
+			text := "[Send] " + pkText
+			if err == nil {
+				logrus.Info(text)
+			} else {
+				logrus.Error(text)
+			}
+
 			if err := serverConn.WritePacket(pk); err != nil {
 				if disconnect, ok := errors.Unwrap(err).(minecraft.DisconnectError); ok {
 					_ = listener.Disconnect(conn, disconnect.Error())
@@ -94,6 +106,15 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				}
 				return
 			}
+
+			pkText, err := packetToLog(pk)
+			text := "[Receive] " + pkText
+			if err == nil {
+				logrus.Info(text)
+			} else {
+				logrus.Error(text)
+			}
+
 			if err := conn.WritePacket(pk); err != nil {
 				return
 			}
@@ -139,4 +160,23 @@ func readConfig() config {
 		log.Fatalf("error writing config file: %v", err)
 	}
 	return c
+}
+
+func packetToLog(pk packet.Packet) (text string, err error) {
+	const (
+		prefix = "=========="
+		suffix = " PACKET " + prefix
+	)
+	text += fmt.Sprintf("%T\n", pk)
+
+	if pkMarshal, err2 := toml.Marshal(pk); err != nil {
+		err = err2
+		text += err.Error()
+	} else {
+		text += prefix + " BEGIN " + suffix
+		text += string(pkMarshal)
+		text += prefix + " END " + suffix
+	}
+
+	return
 }
