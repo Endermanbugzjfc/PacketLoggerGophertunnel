@@ -18,6 +18,11 @@ import (
 
 // The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	logrus.SetLevel(logrus.TraceLevel)
+
 	config := readConfig()
 	token, err := auth.RequestLiveToken()
 	if err != nil {
@@ -36,6 +41,7 @@ func main() {
 		panic(err)
 	}
 	defer listener.Close()
+	logrus.Info("Starting local proxy...")
 	for {
 		c, err := listener.Accept()
 		if err != nil {
