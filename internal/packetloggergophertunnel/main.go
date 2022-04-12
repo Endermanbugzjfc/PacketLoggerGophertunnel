@@ -132,11 +132,13 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			}
 
 			pkText, err := packetToLog(pk, false)
-			text := ReceivePrefix + pkText
-			if err == nil {
-				logrus.Info(text)
-			} else {
-				logrus.Error(text)
+			if pkText != "" {
+				text := ReceivePrefix + pkText
+				if err == nil {
+					logrus.Info(text)
+				} else {
+					logrus.Error(text)
+				}
 			}
 
 			if err := conn.WritePacket(pk); err != nil {
