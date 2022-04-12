@@ -18,9 +18,16 @@ func readConfig() (conf config) {
 	defaultConfigMarshal, _ := toml.Marshal(conf)
 
 	defaultConfigLog := func(defaultConfigMarshal []byte) {
+		const (
+			prefix = "=========="
+			suffix = "DEFAULT CONFIG (DO NOT COPY THIS LINE) " + prefix
+		)
 		logrus.Infof(
-			"Default config to copy:\n%s",
-			string(defaultConfigMarshal),
+			`Default config to copy:
+%s BEGIN %s END %s`,
+			prefix,
+			suffix+string(defaultConfigMarshal)+prefix,
+			suffix,
 		)
 	}
 
