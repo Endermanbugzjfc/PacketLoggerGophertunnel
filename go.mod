@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/df-mc/atomic v1.10.0
-	github.com/pelletier/go-toml v1.8.1
+	github.com/pelletier/go-toml v1.9.4
 	github.com/sandertv/gophertunnel v1.19.6
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
