@@ -33,7 +33,6 @@ const (
 
 var (
 	configAtomic                    atomic.Value[config]
-	configReloadChannelAtomic       atomic.Value[<-chan config]
 	hiddenReceivePacketsCountAtomic atomic.Int32
 	hiddenSendPacketsCountAtomic    atomic.Int32
 
@@ -87,6 +86,12 @@ func main() {
 		}
 	}
 
+	receiveNewDelayChannel := make(chan time.Duration)
+	sendNewDelayChannel := make(chan time.Duration)
+
+	go startRportingHiddenPacketCount(receivePrefix, receiveNewDelayChannel, &hiddenReceivePacketsCountAtomic)
+	go startRportingHiddenPacketCount(sendPrefix, sendNewDelayChannel, &hiddenSendPacketsCountAtomic)
+
 	logrus.Info("Starting local proxy...")
 	for {
 		c, err := listener.Accept()
@@ -100,33 +105,27 @@ func main() {
 
 func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
 	for {
-		configReloadChannel := make(chan config)
-		configReloadChannelAtomic.Store(configReloadChannel)
-
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				c := config{}
-				if event.Op&fsnotify.Write != fsnotify.Write || readConfigNoWrite(configPath, &c) != nil {
-					continue
-				}
-
-				if !c.FileWatcher.ConfigAutoReload {
-					logrus.Info("Config auto reload has been disabled for this app instance.")
-					return
-				}
-
-				close(configReloadChannel)
-				break
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				logrus.Warnf("Failed to reload config: %s", err)
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
 			}
+			c := config{}
+			if event.Op&fsnotify.Write != fsnotify.Write || readConfigNoWrite(configPath, &c) != nil {
+				continue
+			}
+
+			if !c.FileWatcher.ConfigAutoReload {
+				logrus.Info("Config auto reload has been disabled for this app instance.")
+				return
+			}
+
+			// TODO
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			logrus.Warnf("Failed to reload config: %s", err)
 		}
 	}
 }
@@ -166,7 +165,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				return
 			}
 
-			pkText, err := packetToLog(pk, true)
+			pkText, err := packetToLog(pk, &hiddenSendPacketsCountAtomic)
 			if pkText != "" {
 				text := sendPrefix + pkText
 				if err == nil {
@@ -196,7 +195,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				return
 			}
 
-			pkText, err := packetToLog(pk, false)
+			pkText, err := packetToLog(pk, &hiddenReceivePacketsCountAtomic)
 			if pkText != "" {
 				text := receivePrefix + pkText
 				if err == nil {
@@ -211,34 +210,6 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			}
 		}
 	}()
-
-	reportHiddenPacketCount := func(
-		delay time.Duration,
-		countPointer *atomic.Int32,
-		prefix string,
-	) {
-		if delay <= 0 {
-			return
-		}
-
-		const template = "%d hidden packets."
-		for {
-			count := countPointer.Load()
-			countPointer.Store(0)
-			if count > 0 {
-				logrus.Infof(
-					prefix+template,
-					count,
-				)
-			}
-
-			time.Sleep(delay)
-		}
-	}
-
-	delays := config.PacketLogger.ReportHiddenPacketCountDelay
-	go reportHiddenPacketCount(delays.Receive, &hiddenReceivePacketsCountAtomic, receivePrefix)
-	go reportHiddenPacketCount(delays.Send, &hiddenSendPacketsCountAtomic, sendPrefix)
 }
 
 type config struct {
@@ -285,7 +256,7 @@ func readConfig(configPath string) config {
 		}
 		_ = f.Close()
 	}
-	readConfigNoWrite(configPath, &c)
+	_ = readConfigNoWrite(configPath, &c)
 
 	// Fallback config:
 	if c.Connection.LocalAddress == "" {
@@ -318,7 +289,7 @@ func readConfigNoWrite(configPath string, c *config) error {
 	return nil
 }
 
-func packetToLog(pk packet.Packet, send bool) (text string, err error) {
+func packetToLog(pk packet.Packet, countPointer *atomic.Int32) (text string, err error) {
 	packetTypeName := fmt.Sprintf("%T", pk)
 	c := configAtomic.Load()
 
@@ -341,11 +312,7 @@ func packetToLog(pk packet.Packet, send bool) (text string, err error) {
 			return
 		}
 	}
-	count := &hiddenReceivePacketsCountAtomic
-	if send {
-		count = &hiddenSendPacketsCountAtomic
-	}
-	count.Add(1)
+	countPointer.Add(1)
 
 	return
 }
@@ -370,4 +337,43 @@ func findPacketTypeReferencePackageVersion() {
 	}
 
 	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
+}
+
+func startRportingHiddenPacketCount(prefix string, newDelayChannel <-chan time.Duration, countPointer *atomic.Int32) {
+	const template = "%d hidden packets."
+	var (
+		delay time.Duration
+		t     *time.Ticker
+	)
+	defer func() {
+		if t != nil {
+			t.Stop()
+		}
+	}()
+
+	for {
+		if delay <= 0 {
+			delay = <-newDelayChannel
+			if t == nil {
+				t = time.NewTicker(delay)
+			} else {
+				t.Reset(delay)
+			}
+		}
+
+		count := countPointer.Load()
+		countPointer.Store(0)
+		if count > 0 {
+			logrus.Infof(
+				prefix+template,
+				count,
+			)
+		}
+
+		select {
+		case <-t.C:
+		case delay = <-newDelayChannel:
+			t.Reset(delay)
+		}
+	}
 }
