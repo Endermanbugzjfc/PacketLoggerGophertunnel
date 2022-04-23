@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/df-mc/atomic v1.10.0
+	github.com/icza/bitio v1.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/sandertv/gophertunnel v1.19.9
 	github.com/sirupsen/logrus v1.8.1
