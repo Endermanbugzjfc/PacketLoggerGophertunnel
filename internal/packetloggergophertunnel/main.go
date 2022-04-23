@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/df-mc/atomic"
+	"github.com/fsnotify/fsnotify"
 	_ "github.com/icza/bitio"
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft"
@@ -47,7 +48,8 @@ func main() {
 	})
 	logrus.SetLevel(logrus.TraceLevel)
 
-	config := readConfig()
+	const configPath = "config.toml"
+	config := readConfig(configPath)
 	configAtomic.Store(config)
 	token, err := auth.RequestLiveToken()
 	if err != nil {
@@ -66,6 +68,24 @@ func main() {
 		panic(err)
 	}
 	defer listener.Close()
+
+	if config.FileWatcher.ConfigAutoReload {
+		logrus.Info("Creating file watcher...")
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			logrus.Error(err)
+		}
+		defer watcher.Close()
+
+		logrus.Infof("Adding %s to file watcher...", configPath)
+
+		if err := watcher.Add(configPath); err != nil {
+			logrus.Error(err)
+		} else {
+			go configAutoReload(configPath, watcher)
+		}
+	}
+
 	logrus.Info("Starting local proxy...")
 	for {
 		c, err := listener.Accept()
@@ -74,6 +94,32 @@ func main() {
 		}
 		logrus.Info("New connection established.")
 		go handleConn(c.(*minecraft.Conn), listener, config, src)
+	}
+}
+
+func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			c := config{}
+			if event.Op&fsnotify.Write != fsnotify.Write || event.Op&fsnotify.Write == fsnotify.Write {
+				continue
+			}
+
+			configAtomic.Store(c)
+			if !c.FileWatcher.ConfigAutoReload {
+				logrus.Info("Config auto reload has been disabled for this app instance.")
+				return
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			logrus.Warnf("Failed to reload config: %s", err)
+		}
 	}
 }
 
@@ -198,12 +244,15 @@ type config struct {
 			Receive, Send time.Duration
 		}
 	}
+	FileWatcher struct {
+		ConfigAutoReload bool
+	}
 }
 
-func readConfig() config {
+func readConfig(configPath string) config {
 	c := config{}
-	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
-		f, err := os.Create("config.toml")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		f, err := os.Create(configPath)
 		if err != nil {
 			log.Fatalf("error creating config: %v", err)
 		}
@@ -228,13 +277,7 @@ func readConfig() config {
 		}
 		_ = f.Close()
 	}
-	data, err := ioutil.ReadFile("config.toml")
-	if err != nil {
-		log.Fatalf("error reading config: %v", err)
-	}
-	if err := toml.Unmarshal(data, &c); err != nil {
-		log.Fatalf("error decoding config: %v", err)
-	}
+	readConfigNoWrite(configPath, &c)
 
 	// Fallback config:
 	if c.Connection.LocalAddress == "" {
@@ -246,11 +289,25 @@ func readConfig() config {
 		}
 	}
 
-	data, _ = toml.Marshal(c)
-	if err := ioutil.WriteFile("config.toml", data, 0644); err != nil {
+	data, _ := toml.Marshal(c)
+	if err := ioutil.WriteFile(configPath, data, 0644); err != nil {
 		log.Fatalf("error writing config file: %v", err)
 	}
 	return c
+}
+
+func readConfigNoWrite(configPath string, c *config) error {
+	data, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("error reading config: %v", err)
+	}
+	if err := toml.Unmarshal(data, c); err != nil {
+		log.Fatalf("error decoding config: %v", err)
+
+		return err
+	}
+
+	return nil
 }
 
 func packetToLog(pk packet.Packet, send bool) (text string, err error) {
