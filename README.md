@@ -21,3 +21,7 @@ A whitelist of key phrases. If the fully qualified type name of a packet (`*pack
 
 I planned to upgrade this to expression-matching in the future.
 
+## Report Hidden Packet Count Delay
+The gap period between every hidden packet count report fires. The `s` in default duration stands for second.
+
+Setting a report's delay to zero will disable that it.
