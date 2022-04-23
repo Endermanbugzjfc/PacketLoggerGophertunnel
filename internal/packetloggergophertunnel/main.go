@@ -22,6 +22,8 @@ import (
 const (
 	ReceivePrefix = "[Receive] "
 	SendPrefix    = "[Send] "
+
+	PacketTypeReferenceLink = "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)"
 )
 
 var (
@@ -201,7 +203,7 @@ func readConfig() config {
 		c.PacketLogger.ShowPacketType = []string{
 			"ActorEvent",
 			"ActorPickRequest",
-			"(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)",
+			PacketTypeReferenceLink,
 		}
 		const delay = time.Second * 5
 		c.PacketLogger.ReportHiddenPacketCountDelay = struct {
