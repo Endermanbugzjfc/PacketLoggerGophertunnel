@@ -119,6 +119,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
 					return
 				}
 
+				close(configReloadChannel)
 				break
 			case err, ok := <-watcher.Errors:
 				if !ok {
