@@ -103,6 +103,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 	g.Wait()
 
 	go func() {
+		defer logrus.Info("Terminated one connection.")
 		defer listener.Disconnect(conn, "connection lost")
 		defer serverConn.Close()
 		for {
