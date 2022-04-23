@@ -146,31 +146,34 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			}
 		}
 	}()
-	go func() {
-		for {
-			const template = "%d hidden packets."
 
-			countReceive := hiddenReceivePacketsCountAtomic.Load()
-			hiddenReceivePacketsCountAtomic.Store(0)
-			if countReceive > 0 {
-				logrus.Infof(
-					ReceivePrefix+template,
-					countReceive,
-				)
-			}
-
-			countSend := hiddenSendPacketsCountAtomic.Load()
-			hiddenSendPacketsCountAtomic.Store(0)
-			if countSend > 0 {
-				logrus.Infof(
-					SendPrefix+template,
-					countSend,
-				)
-			}
-
-			time.Sleep(time.Second)
+	reportHiddenPacketCount := func(
+		delay time.Duration,
+		countPointer *atomic.Int32,
+		prefix string,
+	) {
+		if delay <= 0 {
+			return
 		}
-	}()
+
+		const template = "%d hidden packets."
+		for {
+			count := countPointer.Load()
+			countPointer.Store(0)
+			if count > 0 {
+				logrus.Infof(
+					prefix+template,
+					count,
+				)
+			}
+
+			time.Sleep(delay)
+		}
+	}
+
+	delays := config.PacketLogger.ReportHiddenPacketCountDelay
+	go reportHiddenPacketCount(delays.Receive, &hiddenReceivePacketsCountAtomic, ReceivePrefix)
+	go reportHiddenPacketCount(delays.Send, &hiddenSendPacketsCountAtomic, SendPrefix)
 }
 
 type config struct {
@@ -179,7 +182,10 @@ type config struct {
 		RemoteAddress string
 	}
 	PacketLogger struct {
-		ShowPacketType []string
+		ShowPacketType               []string
+		ReportHiddenPacketCountDelay struct {
+			Receive, Send time.Duration
+		}
 	}
 }
 
