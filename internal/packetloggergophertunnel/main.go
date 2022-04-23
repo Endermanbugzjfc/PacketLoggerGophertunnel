@@ -191,16 +191,23 @@ type config struct {
 
 func readConfig() config {
 	c := config{}
-	c.PacketLogger.ShowPacketType = []string{
-		"ActorEvent",
-		"ActorPickRequest",
-		"(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)",
-	}
 	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
 		f, err := os.Create("config.toml")
 		if err != nil {
 			log.Fatalf("error creating config: %v", err)
 		}
+
+		// Default config:
+		c.PacketLogger.ShowPacketType = []string{
+			"ActorEvent",
+			"ActorPickRequest",
+			"(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)",
+		}
+		const delay = time.Second * 5
+		c.PacketLogger.ReportHiddenPacketCountDelay = struct {
+			Receive, Send time.Duration
+		}{delay, delay}
+
 		data, err := toml.Marshal(c)
 		if err != nil {
 			log.Fatalf("error encoding default config: %v", err)
@@ -217,9 +224,12 @@ func readConfig() config {
 	if err := toml.Unmarshal(data, &c); err != nil {
 		log.Fatalf("error decoding config: %v", err)
 	}
+
+	// Fallback config:
 	if c.Connection.LocalAddress == "" {
 		c.Connection.LocalAddress = "0.0.0.0:19132"
 	}
+
 	data, _ = toml.Marshal(c)
 	if err := ioutil.WriteFile("config.toml", data, 0644); err != nil {
 		log.Fatalf("error writing config file: %v", err)
