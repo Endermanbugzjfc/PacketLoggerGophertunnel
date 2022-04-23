@@ -110,7 +110,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
 					return
 				}
 				c := config{}
-				if event.Op&fsnotify.Write != fsnotify.Write || event.Op&fsnotify.Write == fsnotify.Write {
+				if event.Op&fsnotify.Write != fsnotify.Write || readConfigNoWrite(configPath, &c) != nil {
 					continue
 				}
 
