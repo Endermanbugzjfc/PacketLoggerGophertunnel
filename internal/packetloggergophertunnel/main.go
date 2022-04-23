@@ -1,16 +1,19 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/df-mc/atomic"
+	_ "github.com/icza/bitio"
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/auth"
@@ -23,17 +26,22 @@ const (
 	receivePrefix = "[Receive] "
 	sendPrefix    = "[Send] "
 
-	packetTypeReferenceLink = "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)"
+	packetTypeReferencePackage      = "github.com/sandertv/gophertunnel"
+	packetTypeReferenceLinkTemplate = "(Look at https://pkg.go.dev/" + packetTypeReferencePackage + "@%s/minecraft/protocol/packet#pkg-index)"
 )
 
 var (
 	configAtomic                    atomic.Value[config]
 	hiddenReceivePacketsCountAtomic atomic.Int32
 	hiddenSendPacketsCountAtomic    atomic.Int32
+
+	packetTypeReferenceLink string
 )
 
 // The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
+	findPacketTypeReferencePackageVersion()
+
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
@@ -231,6 +239,11 @@ func readConfig() config {
 	if c.Connection.LocalAddress == "" {
 		c.Connection.LocalAddress = "0.0.0.0:19132"
 	}
+	if len(c.PacketLogger.ShowPacketType) == 0 {
+		c.PacketLogger.ShowPacketType = []string{
+			packetTypeReferenceLink,
+		}
+	}
 
 	data, _ = toml.Marshal(c)
 	if err := ioutil.WriteFile("config.toml", data, 0644); err != nil {
@@ -269,4 +282,26 @@ func packetToLog(pk packet.Packet, send bool) (text string, err error) {
 	count.Add(1)
 
 	return
+}
+
+// findPacketTypeReferencePackageVersion generates a pkg.go.dev URL for the reference of packet type.
+// It gets the version of one specified library (Gophertunnel) that was shipped in the current build.
+// Generated URL will be output to packetTypeReferenceLink eventually.
+// If it fails to read the build info, the "latest" version will be used.
+func findPacketTypeReferencePackageVersion() {
+	if bi, ok := debug.ReadBuildInfo(); !ok {
+		logrus.Warn("Failed to read build info")
+		return
+	} else {
+		for _, dep := range bi.Deps {
+			if dep.Path != packetTypeReferencePackage {
+				continue
+			}
+
+			packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, packetTypeReferenceLink)
+			return
+		}
+	}
+
+	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
 }
