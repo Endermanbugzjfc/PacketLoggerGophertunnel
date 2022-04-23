@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	ReceivePrefix = "[Receive] "
-	SendPrefix    = "[Send] "
+	receivePrefix = "[Receive] "
+	sendPrefix    = "[Send] "
 
-	PacketTypeReferenceLink = "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)"
+	packetTypeReferenceLink = "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)"
 )
 
 var (
@@ -105,7 +105,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 
 			pkText, err := packetToLog(pk, true)
 			if pkText != "" {
-				text := SendPrefix + pkText
+				text := sendPrefix + pkText
 				if err == nil {
 					logrus.Info(text)
 				} else {
@@ -135,7 +135,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 
 			pkText, err := packetToLog(pk, false)
 			if pkText != "" {
-				text := ReceivePrefix + pkText
+				text := receivePrefix + pkText
 				if err == nil {
 					logrus.Info(text)
 				} else {
@@ -174,8 +174,8 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 	}
 
 	delays := config.PacketLogger.ReportHiddenPacketCountDelay
-	go reportHiddenPacketCount(delays.Receive, &hiddenReceivePacketsCountAtomic, ReceivePrefix)
-	go reportHiddenPacketCount(delays.Send, &hiddenSendPacketsCountAtomic, SendPrefix)
+	go reportHiddenPacketCount(delays.Receive, &hiddenReceivePacketsCountAtomic, receivePrefix)
+	go reportHiddenPacketCount(delays.Send, &hiddenSendPacketsCountAtomic, sendPrefix)
 }
 
 type config struct {
@@ -203,7 +203,7 @@ func readConfig() config {
 		c.PacketLogger.ShowPacketType = []string{
 			"ActorEvent",
 			"ActorPickRequest",
-			PacketTypeReferenceLink,
+			packetTypeReferenceLink,
 		}
 		const delay = time.Second * 5
 		c.PacketLogger.ReportHiddenPacketCountDelay = struct {
