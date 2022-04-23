@@ -33,6 +33,7 @@ const (
 
 var (
 	configAtomic                    atomic.Value[config]
+	configReloadChannelAtomic       atomic.Value[<-chan config]
 	hiddenReceivePacketsCountAtomic atomic.Int32
 	hiddenSendPacketsCountAtomic    atomic.Int32
 
@@ -99,26 +100,32 @@ func main() {
 
 func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
 	for {
-		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				return
-			}
-			c := config{}
-			if event.Op&fsnotify.Write != fsnotify.Write || event.Op&fsnotify.Write == fsnotify.Write {
-				continue
-			}
+		configReloadChannel := make(chan config)
+		configReloadChannelAtomic.Store(configReloadChannel)
 
-			configAtomic.Store(c)
-			if !c.FileWatcher.ConfigAutoReload {
-				logrus.Info("Config auto reload has been disabled for this app instance.")
-				return
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				c := config{}
+				if event.Op&fsnotify.Write != fsnotify.Write || event.Op&fsnotify.Write == fsnotify.Write {
+					continue
+				}
+
+				if !c.FileWatcher.ConfigAutoReload {
+					logrus.Info("Config auto reload has been disabled for this app instance.")
+					return
+				}
+
+				break
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				logrus.Warnf("Failed to reload config: %s", err)
 			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
-			}
-			logrus.Warnf("Failed to reload config: %s", err)
 		}
 	}
 }
