@@ -17,11 +17,11 @@ For Jibix.
     Send = "5s"
 ```
 ## Show Packet Type
-A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process). Reason: [https://www.techtarget.com/whatis/definition/second-s-or-sec](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process).
 
 I planned to upgrade this to expression-matching in the future.
 
 ## Report Hidden Packet Count Delay
-The gap period between every hidden packet count report fire. The `s` in default duration stands for second.
+The gap period between every hidden packet count report fire. The `s` in default duration stands for second. You wondering why? [https://www.techtarget.com/whatis/definition/second-s-or-sec](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 Setting a report's delay to zero will disable that it.
