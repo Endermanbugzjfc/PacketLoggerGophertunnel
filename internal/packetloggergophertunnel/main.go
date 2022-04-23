@@ -299,7 +299,6 @@ func findPacketTypeReferencePackageVersion() {
 			}
 
 			packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, dep.Version)
-			fmt.Println(dep.Version, packetTypeReferenceLink)
 			return
 		}
 	}
