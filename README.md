@@ -17,7 +17,7 @@ For Jibix.
     Send = "5s"
 ```
 ## Show Packet Type
-A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process).
+A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process). Reason: [https://www.techtarget.com/whatis/definition/second-s-or-sec](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 I planned to upgrade this to expression-matching in the future.
 
