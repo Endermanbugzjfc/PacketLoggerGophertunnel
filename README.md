@@ -10,9 +10,14 @@ For Jibix.
   RemoteAddress = ""
 
 [PacketLogger]
-  ShowPacketType = ["ActorEvent", "ActorPickRequest", "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.6/minecraft/protocol/packet#pkg-index)"]
+  ShowPacketType = ["ActorEvent", "ActorPickRequest", "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.9/minecraft/protocol/packet#pkg-index)"]
+
+  [PacketLogger.ReportHiddenPacketCountDelay]
+    Receive = "5s"
+    Send = "5s"
 ```
 ## Show Packet Type
 A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process).
 
 I planned to upgrade this to expression-matching in the future.
+
