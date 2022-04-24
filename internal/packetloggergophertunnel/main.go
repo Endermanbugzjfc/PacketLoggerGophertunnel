@@ -307,7 +307,9 @@ func readConfig(configPath string) config {
 		}
 		_ = f.Close()
 	}
-	_ = readConfigNoWrite(configPath, &c)
+	if readConfigNoWrite(configPath, &c) != nil {
+		logrus.Fatal("Please come back with a fixed config.")
+	}
 
 	// Fallback config:
 	if c.Connection.LocalAddress == "" {
@@ -329,10 +331,10 @@ func readConfig(configPath string) config {
 func readConfigNoWrite(configPath string, c *config) error {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Fatalf("error reading config: %v", err)
+		logrus.Errorf("error reading config: %v", err)
 	}
 	if err := toml.Unmarshal(data, c); err != nil {
-		log.Fatalf("error decoding config: %v", err)
+		logrus.Errorf("error decoding config: %v", err)
 
 		return err
 	}
