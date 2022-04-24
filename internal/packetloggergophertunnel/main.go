@@ -154,6 +154,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 			if event.Op&fsnotify.Write != fsnotify.Write || readConfigNoWrite(configPath, &c) != nil {
 				continue
 			}
+			logrus.Info("Reloaded config.")
 
 			if !c.FileWatcher.ConfigAutoReload {
 				logrus.Info("Config auto-reload will until this app instance ends from now on.")
