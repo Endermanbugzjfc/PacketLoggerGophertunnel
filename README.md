@@ -2,8 +2,59 @@
 For Jibix.
 
 <details>
-  <summary>Click To See Preview Image</summary>
-  <img src="https://cdn.discordapp.com/attachments/637335508166377513/967606420730163240/unknown.png"></img>
+  <summary>Click To See Preview</summary>
+
+```
+Authentication successful.
+INFO[2022-04-24T09:59:54+08:00] Creating file watcher...                     
+INFO[2022-04-24T09:59:54+08:00] Adding config.toml to file watcher...        
+INFO[2022-04-24T09:59:54+08:00] Starting local proxy...                      
+INFO[2022-04-24T10:00:04+08:00] New connection established.                  
+INFO[2022-04-24T10:00:11+08:00] [Recieve] *packet.LevelSoundEvent
+========== BEGIN  PACKET ==========
+BabyMob = false
+DisableRelativeVolume = false
+EntityType = "minecraft:player"
+ExtraData = 3713
+Position = [-632.106, 13.0, 122.5939]
+SoundType = 35
+========== END  PACKET ========== 
+DEBU[2022-04-24T10:00:43+08:00] Reloaded config.                             
+INFO[2022-04-24T10:00:43+08:00] [Recieve] 364 hidden packets.                
+INFO[2022-04-24T10:00:43+08:00] [Send] 673 hidden packets.                   
+INFO[2022-04-24T10:00:53+08:00] [Send] *packet.MovePlayer
+========== BEGIN  PACKET ==========
+EntityRuntimeID = 4146
+HeadYaw = -162.5842
+Mode = 0
+OnGround = true
+Pitch = 14.906464
+Position = [-631.37463, 14.62001, 114.058914]
+RiddenEntityRuntimeID = 0
+TeleportCause = 0
+TeleportSourceEntityType = 0
+Tick = 0
+Yaw = -162.5842
+========== END  PACKET ========== 
+INFO[2022-04-24T10:00:53+08:00] [Send] 201 hidden packets.                   
+INFO[2022-04-24T10:00:53+08:00] [Recieve] 80 hidden packets.                 
+INFO[2022-04-24T10:00:54+08:00] [Send] *packet.MovePlayer
+========== BEGIN  PACKET ==========
+EntityRuntimeID = 4146
+HeadYaw = -162.5842
+Mode = 0
+OnGround = true
+Pitch = 14.906464
+Position = [-630.1268, 14.62001, 110.3]
+RiddenEntityRuntimeID = 0
+TeleportCause = 0
+TeleportSourceEntityType = 0
+Tick = 0
+Yaw = -162.5842
+========== END  PACKET ========== 
+^C
+```
+
 </details>
 
 # Configuration
