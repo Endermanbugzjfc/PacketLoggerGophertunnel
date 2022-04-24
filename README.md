@@ -9,7 +9,7 @@ For Jibix.
   LocalAddress = "0.0.0.0:19132"
   RemoteAddress = ""
 
-[FileWatcher]
+[Reload]
   ConfigAutoReload = false
 
 [PacketLogger]

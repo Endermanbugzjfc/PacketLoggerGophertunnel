@@ -109,7 +109,7 @@ func main() {
 		go startReportingHiddenPacketCount(context)
 	}
 
-	if c.FileWatcher.ConfigAutoReload {
+	if c.Reload.ConfigAutoReload {
 		logrus.Info("Creating file watcher...")
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
@@ -156,7 +156,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 			}
 			logrus.Debug("Reloaded config.")
 
-			if !c.FileWatcher.ConfigAutoReload {
+			if !c.Reload.ConfigAutoReload {
 				logrus.Info("Config auto-reload will until this app instance ends from now on.")
 				return
 			}
@@ -274,7 +274,7 @@ type config struct {
 			Receive, Send time.Duration
 		}
 	}
-	FileWatcher struct {
+	Reload struct {
 		ConfigAutoReload bool
 	}
 }
