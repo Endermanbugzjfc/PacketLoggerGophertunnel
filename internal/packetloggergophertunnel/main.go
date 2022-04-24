@@ -103,7 +103,7 @@ func main() {
 		}
 		onReload[index] = f
 
-		go startRportingHiddenPacketCount(context)
+		go startReportingHiddenPacketCount(context)
 	}
 
 	if c.FileWatcher.ConfigAutoReload {
@@ -384,7 +384,7 @@ func findPacketTypeReferencePackageVersion() {
 	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
 }
 
-func startRportingHiddenPacketCount(context loggerContext) {
+func startReportingHiddenPacketCount(context loggerContext) {
 	const template = "%d hidden packets."
 	var (
 		delay time.Duration
