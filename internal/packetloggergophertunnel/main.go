@@ -88,17 +88,11 @@ func main() {
 			}
 		case 0:
 			f = func(c config) {
-				select {
-				case newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive:
-				default:
-				}
+				newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive
 			}
 		case 1:
 			f = func(c config) {
-				select {
-				case newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send:
-				default:
-				}
+				newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send
 			}
 		}
 		onReload[index] = f
@@ -124,7 +118,7 @@ func main() {
 	}
 	// The original config.
 	for _, f := range onReload {
-		f(c)
+		go f(c)
 	}
 
 	logrus.Info("Starting local proxy...")
@@ -138,6 +132,7 @@ func main() {
 	}
 }
 
+// configAutoReload runs each onReload function on its own goroutine.
 func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []func(c config)) {
 	for {
 		select {
@@ -156,7 +151,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 			}
 
 			for _, f := range onReload {
-				f(c)
+				go f(c)
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
