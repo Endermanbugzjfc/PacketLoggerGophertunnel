@@ -61,7 +61,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	var onReload []func(c config)
+	onReload := make([]func(c config), 2)
 	/*
 		0 = receive.
 		1 = send.
@@ -100,7 +100,7 @@ func main() {
 				}
 			}
 		}
-		onReload = append(onReload, f)
+		onReload[index] = f
 
 		go startRportingHiddenPacketCount(context)
 	}
