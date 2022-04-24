@@ -121,11 +121,10 @@ func main() {
 		} else {
 			go configAutoReload(configPath, watcher, onReload)
 		}
-
-		// The original config.
-		for _, f := range onReload {
-			f(c)
-		}
+	}
+	// The original config.
+	for _, f := range onReload {
+		f(c)
 	}
 
 	logrus.Info("Starting local proxy...")
