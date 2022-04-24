@@ -77,6 +77,7 @@ func main() {
 	for index, context := range loggerContexts {
 		newDelayChannel := make(chan time.Duration)
 		context.CountHiddenDelayChannel = newDelayChannel
+		context.CountHiddenAtomicPointer = &atomic.Int32{}
 		loggerContexts[index] = context
 
 		var f func(c config)
