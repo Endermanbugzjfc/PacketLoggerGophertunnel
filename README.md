@@ -9,6 +9,9 @@ For Jibix.
   LocalAddress = "0.0.0.0:19132"
   RemoteAddress = ""
 
+[FileWatcher]
+  ConfigAutoReload = false
+
 [PacketLogger]
   ShowPacketType = ["ActorEvent", "ActorPickRequest", "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.9/minecraft/protocol/packet#pkg-index)"]
 
@@ -16,6 +19,11 @@ For Jibix.
     Receive = "5s"
     Send = "5s"
 ```
+## Config Auto Reload
+Disabling this option when the app is running will turn off config auto reload for the current app instance (session) ends. In other words, until you restart the it.
+
+The connection section will not be affected by hot-reload or auto-reload.
+
 ## Show Packet Type
 A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process).
 
