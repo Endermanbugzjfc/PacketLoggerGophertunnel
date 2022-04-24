@@ -402,13 +402,13 @@ func startReportingHiddenPacketCount(context loggerContext) {
 	}()
 
 	for {
-		if delay <= 0 {
+		for delay <= 0 {
 			delay = <-context.CountHiddenDelayChannel
-			if t == nil {
-				t = time.NewTicker(delay)
-			} else {
-				t.Reset(delay)
-			}
+		}
+		if t == nil {
+			t = time.NewTicker(delay)
+		} else {
+			t.Reset(delay)
 		}
 
 		counter := context.CountHiddenAtomicPointer
@@ -424,7 +424,12 @@ func startReportingHiddenPacketCount(context loggerContext) {
 		select {
 		case <-t.C:
 		case delay = <-context.CountHiddenDelayChannel:
-			t.Reset(delay)
+			if delay <= 0 {
+				t.Stop()
+				t = nil
+			} else {
+				t.Reset(delay)
+			}
 		}
 	}
 }
