@@ -30,6 +30,9 @@ const (
 
 var (
 	packetTypeReferenceLink string
+
+	showPacketType   []string
+	showPacketTypeMu sync.RWMutex
 )
 
 // The following program implements a proxy that forwards players from one local address to a remote address.
@@ -61,7 +64,13 @@ func main() {
 	}
 	defer listener.Close()
 
-	onReload := make([]func(c config), 2)
+	onReload := make([]func(c config), 3)
+	onReload[0] = func(c config) {
+		showPacketTypeMu.Lock()
+		defer showPacketTypeMu.Unlock()
+
+		showPacketType = c.PacketLogger.ShowPacketType
+	}
 	/*
 		0 = receive.
 		1 = send.
@@ -95,7 +104,7 @@ func main() {
 				newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send
 			}
 		}
-		onReload[index] = f
+		onReload[index+1] = f
 
 		go startReportingHiddenPacketCount(context)
 	}
@@ -128,7 +137,8 @@ func main() {
 			panic(err)
 		}
 		logrus.Info("New connection established.")
-		go handleConn(conn.(*minecraft.Conn), listener, c, src, loggerContexts)
+		// Address will not be affected by config reload.
+		go handleConn(conn.(*minecraft.Conn), listener, c.Connection.RemoteAddress, src, loggerContexts)
 	}
 }
 
@@ -169,11 +179,11 @@ type loggerContext struct {
 }
 
 // handleConn handles a new incoming minecraft.Conn from the minecraft.Listener passed.
-func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config config, src oauth2.TokenSource, loggerContexts []loggerContext) {
+func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddress string, src oauth2.TokenSource, loggerContexts []loggerContext) {
 	serverConn, err := minecraft.Dialer{
 		TokenSource: src,
 		ClientData:  conn.ClientData(),
-	}.Dial("raknet", config.Connection.RemoteAddress)
+	}.Dial("raknet", remoteAddress)
 	if err != nil {
 		panic(err)
 	}
@@ -204,7 +214,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			}
 
 			context := loggerContexts[1]
-			pkText, err := context.PacketToLog(config, pk)
+			pkText, err := context.PacketToLog(pk)
 			if pkText != "" {
 				text := context.Prefix + pkText
 				if err == nil {
@@ -235,7 +245,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 			}
 
 			context := loggerContexts[0]
-			pkText, err := context.PacketToLog(config, pk)
+			pkText, err := context.PacketToLog(pk)
 			if pkText != "" {
 				text := context.Prefix + pkText
 				if err == nil {
@@ -329,10 +339,10 @@ func readConfigNoWrite(configPath string, c *config) error {
 	return nil
 }
 
-func (context loggerContext) PacketToLog(c config, pk packet.Packet) (text string, err error) {
+func (context loggerContext) PacketToLog(pk packet.Packet) (text string, err error) {
 	packetTypeName := fmt.Sprintf("%T", pk)
 
-	for _, ShowPacketType := range c.PacketLogger.ShowPacketType {
+	for _, ShowPacketType := range getShowPacketType() {
 		if strings.Contains(packetTypeName, ShowPacketType) {
 			const (
 				prefix = "=========="
@@ -416,4 +426,11 @@ func startReportingHiddenPacketCount(context loggerContext) {
 			t.Reset(delay)
 		}
 	}
+}
+
+func getShowPacketType() []string {
+	showPacketTypeMu.RLock()
+	defer showPacketTypeMu.RUnlock()
+
+	return showPacketType
 }
