@@ -30,6 +30,6 @@ The gap period between every hidden packet count report fire. The `s` in default
 Setting a report's delay to zero will disable that it.
 
 ## Config Auto Reload
-Disabling this option when the app is running will turn off config auto reload for the current app instance (session) ends. In other words, until you restart the it.
+Disabling this option when the app is running will turn off config auto reload until the current app instance (session) ends. In other words, until you restart the it.
 
 The connection section will not be affected by hot-reload or auto-reload.
