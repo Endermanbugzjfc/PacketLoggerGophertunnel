@@ -1,6 +1,11 @@
 # PacketLoggerGophertunnel
 For Jibix.
 
+<details>
+  <summary>Click To See Preview Image</summary>
+  ![](https://cdn.discordapp.com/attachments/637335508166377513/967606420730163240/unknown.png)
+</details>
+
 # Configuration
 ## Default
 ```toml
