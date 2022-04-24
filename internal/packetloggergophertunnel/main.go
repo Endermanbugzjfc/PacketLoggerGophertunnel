@@ -151,7 +151,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 			}
 
 			if !c.FileWatcher.ConfigAutoReload {
-				logrus.Info("Config auto reload has been disabled for this app instance.")
+				logrus.Info("Config auto-reload has been disabled for this app instance.")
 				return
 			}
 
