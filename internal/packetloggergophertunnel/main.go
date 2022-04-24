@@ -83,23 +83,29 @@ func main() {
 
 		logrus.Infof("Adding %s to file watcher...", configPath)
 
+		onReload := []func(c config){
+			func(c config) {
+				select {
+				case receiveNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive:
+				default:
+				}
+			},
+			func(c config) {
+				select {
+				case sendNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send:
+				default:
+				}
+			},
+		}
 		if err := watcher.Add(configPath); err != nil {
 			logrus.Error(err)
 		} else {
-			go configAutoReload(configPath, watcher, []func(c config){
-				func(c config) {
-					select {
-					case receiveNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive:
-					default:
-					}
-				},
-				func(c config) {
-					select {
-					case sendNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send:
-					default:
-					}
-				},
-			})
+			go configAutoReload(configPath, watcher, onReload)
+		}
+
+		// The original config.
+		for _, f := range onReload {
+			f(c)
 		}
 	}
 
