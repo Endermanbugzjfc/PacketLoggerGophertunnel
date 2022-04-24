@@ -32,7 +32,6 @@ const (
 )
 
 var (
-	configAtomic                    atomic.Value[config]
 	hiddenReceivePacketsCountAtomic atomic.Int32
 	hiddenSendPacketsCountAtomic    atomic.Int32
 
@@ -49,27 +48,32 @@ func main() {
 	logrus.SetLevel(logrus.TraceLevel)
 
 	const configPath = "config.toml"
-	config := readConfig(configPath)
-	configAtomic.Store(config)
+	c := readConfig(configPath)
 	token, err := auth.RequestLiveToken()
 	if err != nil {
 		panic(err)
 	}
 	src := auth.RefreshTokenSource(token)
 
-	p, err := minecraft.NewForeignStatusProvider(config.Connection.RemoteAddress)
+	p, err := minecraft.NewForeignStatusProvider(c.Connection.RemoteAddress)
 	if err != nil {
 		panic(err)
 	}
 	listener, err := minecraft.ListenConfig{
 		StatusProvider: p,
-	}.Listen("raknet", config.Connection.LocalAddress)
+	}.Listen("raknet", c.Connection.LocalAddress)
 	if err != nil {
 		panic(err)
 	}
 	defer listener.Close()
 
-	if config.FileWatcher.ConfigAutoReload {
+	receiveNewDelayChannel := make(chan time.Duration)
+	sendNewDelayChannel := make(chan time.Duration)
+
+	go startRportingHiddenPacketCount(receivePrefix, receiveNewDelayChannel, &hiddenReceivePacketsCountAtomic)
+	go startRportingHiddenPacketCount(sendPrefix, sendNewDelayChannel, &hiddenSendPacketsCountAtomic)
+
+	if c.FileWatcher.ConfigAutoReload {
 		logrus.Info("Creating file watcher...")
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
@@ -82,28 +86,35 @@ func main() {
 		if err := watcher.Add(configPath); err != nil {
 			logrus.Error(err)
 		} else {
-			go configAutoReload(configPath, watcher)
+			go configAutoReload(configPath, watcher, []func(c config){
+				func(c config) {
+					select {
+					case receiveNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive:
+					default:
+					}
+				},
+				func(c config) {
+					select {
+					case sendNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send:
+					default:
+					}
+				},
+			})
 		}
 	}
 
-	receiveNewDelayChannel := make(chan time.Duration)
-	sendNewDelayChannel := make(chan time.Duration)
-
-	go startRportingHiddenPacketCount(receivePrefix, receiveNewDelayChannel, &hiddenReceivePacketsCountAtomic)
-	go startRportingHiddenPacketCount(sendPrefix, sendNewDelayChannel, &hiddenSendPacketsCountAtomic)
-
 	logrus.Info("Starting local proxy...")
 	for {
-		c, err := listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			panic(err)
 		}
 		logrus.Info("New connection established.")
-		go handleConn(c.(*minecraft.Conn), listener, config, src)
+		go handleConn(conn.(*minecraft.Conn), listener, c, src)
 	}
 }
 
-func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
+func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []func(c config)) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -120,7 +131,9 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher) {
 				return
 			}
 
-			// TODO
+			for _, f := range onReload {
+				f(c)
+			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
@@ -165,7 +178,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				return
 			}
 
-			pkText, err := packetToLog(pk, &hiddenSendPacketsCountAtomic)
+			pkText, err := packetToLog(config, pk, &hiddenSendPacketsCountAtomic)
 			if pkText != "" {
 				text := sendPrefix + pkText
 				if err == nil {
@@ -195,7 +208,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				return
 			}
 
-			pkText, err := packetToLog(pk, &hiddenReceivePacketsCountAtomic)
+			pkText, err := packetToLog(config, pk, &hiddenReceivePacketsCountAtomic)
 			if pkText != "" {
 				text := receivePrefix + pkText
 				if err == nil {
@@ -289,9 +302,8 @@ func readConfigNoWrite(configPath string, c *config) error {
 	return nil
 }
 
-func packetToLog(pk packet.Packet, countPointer *atomic.Int32) (text string, err error) {
+func packetToLog(c config, pk packet.Packet, countPointer *atomic.Int32) (text string, err error) {
 	packetTypeName := fmt.Sprintf("%T", pk)
-	c := configAtomic.Load()
 
 	for _, ShowPacketType := range c.PacketLogger.ShowPacketType {
 		if strings.Contains(packetTypeName, ShowPacketType) {
