@@ -24,17 +24,11 @@ import (
 )
 
 const (
-	receivePrefix = "[Receive] "
-	sendPrefix    = "[Send] "
-
 	packetTypeReferencePackage      = "github.com/sandertv/gophertunnel"
 	packetTypeReferenceLinkTemplate = "(Look at https://pkg.go.dev/" + packetTypeReferencePackage + "@%s/minecraft/protocol/packet#pkg-index)"
 )
 
 var (
-	hiddenReceivePacketsCountAtomic atomic.Int32
-	hiddenSendPacketsCountAtomic    atomic.Int32
-
 	packetTypeReferenceLink string
 )
 
@@ -67,11 +61,49 @@ func main() {
 	}
 	defer listener.Close()
 
-	receiveNewDelayChannel := make(chan time.Duration)
-	sendNewDelayChannel := make(chan time.Duration)
+	var onReload []func(c config)
+	/*
+		0 = receive.
+		1 = send.
+	*/
+	loggerContexts := []loggerContext{
+		{
+			Prefix: "[Recieve] ",
+		},
+		{
+			Prefix: "[Send] ",
+		},
+	}
+	for index, context := range loggerContexts {
+		newDelayChannel := make(chan time.Duration)
+		context.CountHiddenDelayChannel = newDelayChannel
+		loggerContexts[index] = context
 
-	go startRportingHiddenPacketCount(receivePrefix, receiveNewDelayChannel, &hiddenReceivePacketsCountAtomic)
-	go startRportingHiddenPacketCount(sendPrefix, sendNewDelayChannel, &hiddenSendPacketsCountAtomic)
+		var f func(c config)
+		switch index {
+		default:
+			f = func(config) {
+				logrus.Debugf("Config update does not affect logger %s.", context.Prefix)
+			}
+		case 0:
+			f = func(c config) {
+				select {
+				case newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive:
+				default:
+				}
+			}
+		case 1:
+			f = func(c config) {
+				select {
+				case newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send:
+				default:
+				}
+			}
+		}
+		onReload = append(onReload, f)
+
+		go startRportingHiddenPacketCount(context)
+	}
 
 	if c.FileWatcher.ConfigAutoReload {
 		logrus.Info("Creating file watcher...")
@@ -83,20 +115,6 @@ func main() {
 
 		logrus.Infof("Adding %s to file watcher...", configPath)
 
-		onReload := []func(c config){
-			func(c config) {
-				select {
-				case receiveNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive:
-				default:
-				}
-			},
-			func(c config) {
-				select {
-				case sendNewDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send:
-				default:
-				}
-			},
-		}
 		if err := watcher.Add(configPath); err != nil {
 			logrus.Error(err)
 		} else {
@@ -116,7 +134,7 @@ func main() {
 			panic(err)
 		}
 		logrus.Info("New connection established.")
-		go handleConn(conn.(*minecraft.Conn), listener, c, src)
+		go handleConn(conn.(*minecraft.Conn), listener, c, src, loggerContexts)
 	}
 }
 
@@ -149,8 +167,14 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 	}
 }
 
+type loggerContext struct {
+	Prefix                   string
+	CountHiddenDelayChannel  <-chan time.Duration
+	CountHiddenAtomicPointer *atomic.Int32
+}
+
 // handleConn handles a new incoming minecraft.Conn from the minecraft.Listener passed.
-func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config config, src oauth2.TokenSource) {
+func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config config, src oauth2.TokenSource, loggerContexts []loggerContext) {
 	serverConn, err := minecraft.Dialer{
 		TokenSource: src,
 		ClientData:  conn.ClientData(),
@@ -184,9 +208,10 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				return
 			}
 
-			pkText, err := packetToLog(config, pk, &hiddenSendPacketsCountAtomic)
+			context := loggerContexts[1]
+			pkText, err := context.PacketToLog(config, pk)
 			if pkText != "" {
-				text := sendPrefix + pkText
+				text := context.Prefix + pkText
 				if err == nil {
 					logrus.Info(text)
 				} else {
@@ -214,9 +239,10 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, config confi
 				return
 			}
 
-			pkText, err := packetToLog(config, pk, &hiddenReceivePacketsCountAtomic)
+			context := loggerContexts[0]
+			pkText, err := context.PacketToLog(config, pk)
 			if pkText != "" {
-				text := receivePrefix + pkText
+				text := context.Prefix + pkText
 				if err == nil {
 					logrus.Info(text)
 				} else {
@@ -308,7 +334,7 @@ func readConfigNoWrite(configPath string, c *config) error {
 	return nil
 }
 
-func packetToLog(c config, pk packet.Packet, countPointer *atomic.Int32) (text string, err error) {
+func (context loggerContext) PacketToLog(c config, pk packet.Packet) (text string, err error) {
 	packetTypeName := fmt.Sprintf("%T", pk)
 
 	for _, ShowPacketType := range c.PacketLogger.ShowPacketType {
@@ -330,7 +356,7 @@ func packetToLog(c config, pk packet.Packet, countPointer *atomic.Int32) (text s
 			return
 		}
 	}
-	countPointer.Add(1)
+	context.CountHiddenAtomicPointer.Add(1)
 
 	return
 }
@@ -357,7 +383,7 @@ func findPacketTypeReferencePackageVersion() {
 	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
 }
 
-func startRportingHiddenPacketCount(prefix string, newDelayChannel <-chan time.Duration, countPointer *atomic.Int32) {
+func startRportingHiddenPacketCount(context loggerContext) {
 	const template = "%d hidden packets."
 	var (
 		delay time.Duration
@@ -371,7 +397,7 @@ func startRportingHiddenPacketCount(prefix string, newDelayChannel <-chan time.D
 
 	for {
 		if delay <= 0 {
-			delay = <-newDelayChannel
+			delay = <-context.CountHiddenDelayChannel
 			if t == nil {
 				t = time.NewTicker(delay)
 			} else {
@@ -379,18 +405,19 @@ func startRportingHiddenPacketCount(prefix string, newDelayChannel <-chan time.D
 			}
 		}
 
-		count := countPointer.Load()
-		countPointer.Store(0)
+		counter := context.CountHiddenAtomicPointer
+		count := counter.Load()
+		counter.Store(0)
 		if count > 0 {
 			logrus.Infof(
-				prefix+template,
+				context.Prefix+template,
 				count,
 			)
 		}
 
 		select {
 		case <-t.C:
-		case delay = <-newDelayChannel:
+		case delay = <-context.CountHiddenDelayChannel:
 			t.Reset(delay)
 		}
 	}
