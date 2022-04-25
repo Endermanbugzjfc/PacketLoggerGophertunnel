@@ -92,6 +92,6 @@ The connection section will not be affected by hot-reload or auto-reload.
 
 # Start and End
 
-Although you can double click the executable to run it, I recommand you to run it from a terminal window. If you want to read the logs and crash dump after the app exits.
+I recommand you to run it from a terminal window rather than doubling clicking the executable file from your GUI file manager. This will allow you to read the logs and crash dump after the app exits.
 
 Press Ctrl+C to exit the app. Beware that it will not disconnect your player properly. I were too lazy to code that (might implement in the future)...
