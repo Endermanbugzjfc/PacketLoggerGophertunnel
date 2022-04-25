@@ -89,3 +89,9 @@ Setting a report's delay to zero will disable that it.
 Disabling this option when the app is running will turn off config auto reload until the current app instance (session) ends. In other words, until you restart it.
 
 The connection section will not be affected by hot-reload or auto-reload.
+
+# Start and End
+
+Although you can double click the executable to run it, I recommand you to run it from a terminal window. If you want to read the logs and crash dump after the app exits.
+
+Press Ctrl+C to exit the app. Beware that it will not disconnect your player properly. I were too lazy to code that (might implement in the future)...
