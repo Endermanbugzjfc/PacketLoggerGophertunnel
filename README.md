@@ -59,6 +59,7 @@ Yaw = -162.5842
 
 # Configuration
 ## Default
+Please create a `config.toml` in the working directory of an app instance.
 ```toml
 
 [Connection]
