@@ -7,7 +7,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/pelletier/go-toml"
-	"github.com/sandertv/gophertunnel/minecraft/packet"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
