@@ -63,6 +63,21 @@ func main() {
 	}
 	defer listener.Close()
 
+	ctxs := makeLoggerContexts(c, configPath)
+
+	logrus.Info("Starting local proxy...")
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			panic(err)
+		}
+		logrus.Info("New connection established.")
+		// Address will not be affected by config reload.
+		go handleConn(conn.(*minecraft.Conn), listener, c.Connection.RemoteAddress, src, ctxs)
+	}
+}
+
+func makeLoggerContexts(c config, configPath string) loggerContexts {
 	onReload := make([]func(c config), 3)
 	onReload[0] = func(c config) {
 		showPacketTypeMu.Lock()
@@ -125,16 +140,7 @@ func main() {
 		go f(c)
 	}
 
-	logrus.Info("Starting local proxy...")
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			panic(err)
-		}
-		logrus.Info("New connection established.")
-		// Address will not be affected by config reload.
-		go handleConn(conn.(*minecraft.Conn), listener, c.Connection.RemoteAddress, src, ctxs)
-	}
+	return ctxs
 }
 
 // configAutoReload runs each onReload function on its own goroutine.
