@@ -14,7 +14,8 @@ import (
 
 type (
 	loggerContext struct {
-		Prefix string
+		Prefix         string
+		ShowPacketType atomic.Value[[]string]
 
 		// CountHidden:
 		Delay <-chan time.Duration
@@ -37,7 +38,7 @@ func (context *loggerContext) LogPacket(pk packet.Packet) {
 	}()
 
 	packetTypeName := fmt.Sprintf("%T", pk)
-	for _, ShowPacketType := range getShowPacketType() {
+	for _, ShowPacketType := range context.ShowPacketType.Load() {
 		if strings.Contains(packetTypeName, ShowPacketType) {
 			const (
 				prefix = "=========="
@@ -71,16 +72,11 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 		},
 	}
 	onReload := func(c config) {
-		func() {
-			showPacketTypeMu.Lock()
-			defer showPacketTypeMu.Unlock()
-
-			showPacketType = c.PacketLogger.ShowPacketType
-		}()
 
 		newDelayChannel := make(chan time.Duration)
 		newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive
 		for _, context := range ctxs {
+			context.ShowPacketType.Store(c.PacketLogger.ShowPacketType)
 			go context.StartReportingHiddenPacketCount()
 		}
 	}
@@ -105,13 +101,6 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 	onReload(c)
 
 	return ctxs
-}
-
-func getShowPacketType() []string {
-	showPacketTypeMu.RLock()
-	defer showPacketTypeMu.RUnlock()
-
-	return showPacketType
 }
 
 func (context loggerContext) StartReportingHiddenPacketCount() {

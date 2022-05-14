@@ -18,12 +18,7 @@ const (
 	packetTypeReferenceLinkTemplate = "(Look at https://pkg.go.dev/" + packetTypeReferencePackage + "@%s/minecraft/protocol/packet#pkg-index)"
 )
 
-var (
-	packetTypeReferenceLink string
-
-	showPacketType   []string
-	showPacketTypeMu sync.RWMutex
-)
+var packetTypeReferenceLink string
 
 // The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
