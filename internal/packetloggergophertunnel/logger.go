@@ -54,6 +54,7 @@ func (context *loggerContext) LogPacket(pk packet.Packet) {
 				text += string(pkMarshal)
 				text += prefix + " END " + suffix
 			}
+
 			return
 		}
 	}
@@ -72,7 +73,6 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 		},
 	}
 	onReload := func(c config) {
-
 		newDelayChannel := make(chan time.Duration)
 		newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive
 		for _, context := range ctxs {
@@ -91,7 +91,7 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 
 		logrus.Infof("Adding %s to file watcher...", configPath)
 
-		if err := watcher.Add(configPath); err != nil {
+		if err = watcher.Add(configPath); err != nil {
 			logrus.Error(err)
 		} else {
 			go configAutoReload(configPath, watcher, onReload)
