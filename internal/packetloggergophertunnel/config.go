@@ -1,15 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 )
+
+const (
+	packetTypeReferencePackage      = "github.com/sandertv/gophertunnel"
+	packetTypeReferenceLinkTemplate = "(Look at https://pkg.go.dev/" + packetTypeReferencePackage + "@%s/minecraft/protocol/packet#pkg-index)"
+)
+
+var packetTypeReferenceLink string
 
 type config struct {
 	Connection struct {
@@ -117,4 +126,26 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload fun
 			logrus.Warnf("Failed to reload config: %s", err)
 		}
 	}
+}
+
+// findPacketTypeReferencePackageVersion generates a pkg.go.dev URL for the reference of packet type.
+// It gets the version of one specified library (Gophertunnel) that was shipped in the current build.
+// Generated URL will be output to packetTypeReferenceLink eventually.
+// If it fails to read the build info, the "latest" version will be used.
+func findPacketTypeReferencePackageVersion() {
+	if bi, ok := debug.ReadBuildInfo(); !ok {
+		logrus.Warn("Failed to read build info")
+		return
+	} else {
+		for _, dep := range bi.Deps {
+			if dep.Path != packetTypeReferencePackage {
+				continue
+			}
+
+			packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, dep.Version)
+			return
+		}
+	}
+
+	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
 }

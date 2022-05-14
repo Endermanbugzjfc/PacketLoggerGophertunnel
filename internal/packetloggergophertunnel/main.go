@@ -2,8 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"runtime/debug"
 	"sync"
 
 	_ "github.com/icza/bitio"
@@ -12,13 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
-
-const (
-	packetTypeReferencePackage      = "github.com/sandertv/gophertunnel"
-	packetTypeReferenceLinkTemplate = "(Look at https://pkg.go.dev/" + packetTypeReferencePackage + "@%s/minecraft/protocol/packet#pkg-index)"
-)
-
-var packetTypeReferenceLink string
 
 // The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
@@ -125,26 +116,4 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddres
 			}
 		}
 	}()
-}
-
-// findPacketTypeReferencePackageVersion generates a pkg.go.dev URL for the reference of packet type.
-// It gets the version of one specified library (Gophertunnel) that was shipped in the current build.
-// Generated URL will be output to packetTypeReferenceLink eventually.
-// If it fails to read the build info, the "latest" version will be used.
-func findPacketTypeReferencePackageVersion() {
-	if bi, ok := debug.ReadBuildInfo(); !ok {
-		logrus.Warn("Failed to read build info")
-		return
-	} else {
-		for _, dep := range bi.Deps {
-			if dep.Path != packetTypeReferencePackage {
-				continue
-			}
-
-			packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, dep.Version)
-			return
-		}
-	}
-
-	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
 }
