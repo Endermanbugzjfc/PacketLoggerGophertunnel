@@ -78,13 +78,6 @@ func main() {
 }
 
 func makeLoggerContexts(c config, configPath string) loggerContexts {
-	onReload := make([]func(c config), 3)
-	onReload[0] = func(c config) {
-		showPacketTypeMu.Lock()
-		defer showPacketTypeMu.Unlock()
-
-		showPacketType = c.PacketLogger.ShowPacketType
-	}
 	ctxs := loggerContexts{
 		{
 			Prefix: "[Recieve] ",
@@ -93,30 +86,23 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 			Prefix: "[Send] ",
 		},
 	}
-	for index, context := range ctxs {
+	onReload := func(c config) {
+		func() {
+			showPacketTypeMu.Lock()
+			defer showPacketTypeMu.Unlock()
+
+			showPacketType = c.PacketLogger.ShowPacketType
+		}()
+
 		newDelayChannel := make(chan time.Duration)
-		context.CountHiddenDelayChannel = newDelayChannel
-		context.CountHiddenAtomicPointer = &atomic.Int32{}
-		ctxs[index] = context
+		newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive
+		for _, context := range ctxs {
+			context.CountHiddenDelayChannel = newDelayChannel
+			context.CountHiddenAtomicPointer = &atomic.Int32{}
 
-		var f func(c config)
-		switch index {
-		default:
-			f = func(config) {
-				logrus.Debugf("Config update does not affect logger %s.", context.Prefix)
-			}
-		case 0:
-			f = func(c config) {
-				newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive
-			}
-		case 1:
-			f = func(c config) {
-				newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send
-			}
+			newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send
+			go startReportingHiddenPacketCount(context)
 		}
-		onReload[index+1] = f
-
-		go startReportingHiddenPacketCount(context)
 	}
 
 	if c.Reload.ConfigAutoReload {
@@ -136,15 +122,13 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 		}
 	}
 	// The original config.
-	for _, f := range onReload {
-		go f(c)
-	}
+	onReload(c)
 
 	return ctxs
 }
 
 // configAutoReload runs each onReload function on its own goroutine.
-func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []func(c config)) {
+func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload func(c config)) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -162,9 +146,7 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 				return
 			}
 
-			for _, f := range onReload {
-				go f(c)
-			}
+			onReload(c)
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
