@@ -352,7 +352,7 @@ func (context loggerContext) PacketToLog(pk packet.Packet) (text string, err err
 			)
 			text += packetTypeName + "\n"
 
-			if pkMarshal, err2 := toml.Marshal(pk); err != nil {
+			if pkMarshal, err2 := toml.Marshal(pk); err2 != nil {
 				err = err2
 				text += err.Error()
 			} else {
