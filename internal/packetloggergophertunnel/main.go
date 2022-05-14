@@ -212,17 +212,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddres
 			if err != nil {
 				return
 			}
-
-			context := loggerContexts[1]
-			pkText, err := context.PacketToLog(pk)
-			if pkText != "" {
-				text := context.Prefix + pkText
-				if err == nil {
-					logrus.Info(text)
-				} else {
-					logrus.Error(text)
-				}
-			}
+			loggerContexts[1].LogPacket(pk)
 
 			if err := serverConn.WritePacket(pk); err != nil {
 				if disconnect, ok := errors.Unwrap(err).(minecraft.DisconnectError); ok {
@@ -243,17 +233,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddres
 				}
 				return
 			}
-
-			context := loggerContexts[0]
-			pkText, err := context.PacketToLog(pk)
-			if pkText != "" {
-				text := context.Prefix + pkText
-				if err == nil {
-					logrus.Info(text)
-				} else {
-					logrus.Error(text)
-				}
-			}
+			loggerContexts[0].LogPacket(pk)
 
 			if err := conn.WritePacket(pk); err != nil {
 				return
@@ -341,9 +321,20 @@ func readConfigNoWrite(configPath string, c *config) error {
 	return nil
 }
 
-func (context loggerContext) PacketToLog(pk packet.Packet) (text string, err error) {
-	packetTypeName := fmt.Sprintf("%T", pk)
+func (context loggerContext) LogPacket(pk packet.Packet) {
+	var (
+		text = context.Prefix
+		err  error
+	)
+	defer func() {
+		if err == nil {
+			logrus.Info(text)
+		} else {
+			logrus.Error(text)
+		}
+	}()
 
+	packetTypeName := fmt.Sprintf("%T", pk)
 	for _, ShowPacketType := range getShowPacketType() {
 		if strings.Contains(packetTypeName, ShowPacketType) {
 			const (
