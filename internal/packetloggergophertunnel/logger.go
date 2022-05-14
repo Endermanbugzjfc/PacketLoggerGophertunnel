@@ -14,9 +14,11 @@ import (
 
 type (
 	loggerContext struct {
-		Prefix                   string
-		CountHiddenDelayChannel  <-chan time.Duration
-		CountHiddenAtomicPointer *atomic.Int32
+		Prefix string
+
+		// CountHidden:
+		Delay <-chan time.Duration
+		Count atomic.Int32
 	}
 	loggerContexts [2]*loggerContext
 )
@@ -54,7 +56,7 @@ func (context *loggerContext) LogPacket(pk packet.Packet) {
 			return
 		}
 	}
-	context.CountHiddenAtomicPointer.Add(1)
+	context.Count.Add(1)
 
 	return
 }
@@ -79,11 +81,7 @@ func makeLoggerContexts(c config, configPath string) loggerContexts {
 		newDelayChannel := make(chan time.Duration)
 		newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Receive
 		for _, context := range ctxs {
-			context.CountHiddenDelayChannel = newDelayChannel
-			context.CountHiddenAtomicPointer = &atomic.Int32{}
-
-			newDelayChannel <- c.PacketLogger.ReportHiddenPacketCountDelay.Send
-			go startReportingHiddenPacketCount(context)
+			go context.StartReportingHiddenPacketCount()
 		}
 	}
 
@@ -116,7 +114,7 @@ func getShowPacketType() []string {
 	return showPacketType
 }
 
-func startReportingHiddenPacketCount(context *loggerContext) {
+func (context loggerContext) StartReportingHiddenPacketCount() {
 	const template = "%d hidden packets."
 	var (
 		delay time.Duration
@@ -129,18 +127,18 @@ func startReportingHiddenPacketCount(context *loggerContext) {
 	}()
 
 	for {
-		for delay <= 0 {
-			delay = <-context.CountHiddenDelayChannel
-		}
-		if t == nil {
-			t = time.NewTicker(delay)
-		} else {
-			t.Reset(delay)
+		for {
+			delay = <-context.Delay
+
+			if delay > 0 {
+				t = time.NewTicker(delay)
+
+				break
+			}
 		}
 
-		counter := context.CountHiddenAtomicPointer
-		count := counter.Load()
-		counter.Store(0)
+		count := context.Count.Load()
+		context.Count.Store(0)
 		if count > 0 {
 			logrus.Infof(
 				context.Prefix+template,
@@ -150,7 +148,7 @@ func startReportingHiddenPacketCount(context *loggerContext) {
 
 		select {
 		case <-t.C:
-		case delay = <-context.CountHiddenDelayChannel:
+		case delay = <-context.Delay:
 			if delay <= 0 {
 				t.Stop()
 				t = nil
