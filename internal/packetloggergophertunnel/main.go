@@ -70,7 +70,7 @@ func main() {
 
 		showPacketType = c.PacketLogger.ShowPacketType
 	}
-	loggerContexts := []*loggerContext{
+	ctxs := loggerContexts{
 		{
 			Prefix: "[Recieve] ",
 		},
@@ -78,11 +78,11 @@ func main() {
 			Prefix: "[Send] ",
 		},
 	}
-	for index, context := range loggerContexts {
+	for index, context := range ctxs {
 		newDelayChannel := make(chan time.Duration)
 		context.CountHiddenDelayChannel = newDelayChannel
 		context.CountHiddenAtomicPointer = &atomic.Int32{}
-		loggerContexts[index] = context
+		ctxs[index] = context
 
 		var f func(c config)
 		switch index {
@@ -133,7 +133,7 @@ func main() {
 		}
 		logrus.Info("New connection established.")
 		// Address will not be affected by config reload.
-		go handleConn(conn.(*minecraft.Conn), listener, c.Connection.RemoteAddress, src, loggerContexts)
+		go handleConn(conn.(*minecraft.Conn), listener, c.Connection.RemoteAddress, src, ctxs)
 	}
 }
 
@@ -168,14 +168,17 @@ func configAutoReload(configPath string, watcher *fsnotify.Watcher, onReload []f
 	}
 }
 
-type loggerContext struct {
-	Prefix                   string
-	CountHiddenDelayChannel  <-chan time.Duration
-	CountHiddenAtomicPointer *atomic.Int32
-}
+type (
+	loggerContext struct {
+		Prefix                   string
+		CountHiddenDelayChannel  <-chan time.Duration
+		CountHiddenAtomicPointer *atomic.Int32
+	}
+	loggerContexts [2]*loggerContext
+)
 
 // handleConn handles a new incoming minecraft.Conn from the minecraft.Listener passed.
-func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddress string, src oauth2.TokenSource, loggerContexts []*loggerContext) {
+func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddress string, src oauth2.TokenSource, ctxs loggerContexts) {
 	serverConn, err := minecraft.Dialer{
 		TokenSource: src,
 		ClientData:  conn.ClientData(),
@@ -208,7 +211,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddres
 			if err != nil {
 				return
 			}
-			loggerContexts[1].LogPacket(pk)
+			ctxs[1].LogPacket(pk)
 
 			if err := serverConn.WritePacket(pk); err != nil {
 				if disconnect, ok := errors.Unwrap(err).(minecraft.DisconnectError); ok {
@@ -229,7 +232,7 @@ func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddres
 				}
 				return
 			}
-			loggerContexts[0].LogPacket(pk)
+			ctxs[0].LogPacket(pk)
 
 			if err := conn.WritePacket(pk); err != nil {
 				return
