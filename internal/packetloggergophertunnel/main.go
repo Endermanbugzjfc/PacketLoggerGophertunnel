@@ -70,11 +70,7 @@ func main() {
 
 		showPacketType = c.PacketLogger.ShowPacketType
 	}
-	/*
-		0 = receive.
-		1 = send.
-	*/
-	loggerContexts := []loggerContext{
+	loggerContexts := []*loggerContext{
 		{
 			Prefix: "[Recieve] ",
 		},
@@ -179,7 +175,7 @@ type loggerContext struct {
 }
 
 // handleConn handles a new incoming minecraft.Conn from the minecraft.Listener passed.
-func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddress string, src oauth2.TokenSource, loggerContexts []loggerContext) {
+func handleConn(conn *minecraft.Conn, listener *minecraft.Listener, remoteAddress string, src oauth2.TokenSource, loggerContexts []*loggerContext) {
 	serverConn, err := minecraft.Dialer{
 		TokenSource: src,
 		ClientData:  conn.ClientData(),
@@ -321,7 +317,7 @@ func readConfigNoWrite(configPath string, c *config) error {
 	return nil
 }
 
-func (context loggerContext) LogPacket(pk packet.Packet) {
+func (context *loggerContext) LogPacket(pk packet.Packet) {
 	var (
 		text = context.Prefix
 		err  error
@@ -381,7 +377,7 @@ func findPacketTypeReferencePackageVersion() {
 	packetTypeReferenceLink = fmt.Sprintf(packetTypeReferenceLinkTemplate, "latest")
 }
 
-func startReportingHiddenPacketCount(context loggerContext) {
+func startReportingHiddenPacketCount(context *loggerContext) {
 	const template = "%d hidden packets."
 	var (
 		delay time.Duration
