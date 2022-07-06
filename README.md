@@ -77,7 +77,7 @@ Please create a `config.toml` in the working directory of an app instance.
   ConfigAutoReload = false
 ```
 ## Show Packet Type
-A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) contains any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process).
+A whitelist of key phrases. If the fully qualified type name of a packet (`*packet.PacketTypeName`) matches any key phrases, its raw content will be visualised into TOML and then dumped to the console (if there is no error during the visualisation process).
 
 I planned to upgrade this to expression-matching in the future.
 
