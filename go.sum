@@ -131,8 +131,8 @@ github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/sandertv/go-raknet v1.12.0 h1:olUzZlIJyX/pgj/mrsLCZYjKLNDsYiWdvQ4NIm3z0DA=
 github.com/sandertv/go-raknet v1.12.0/go.mod h1:Gx+WgZBMQ0V2UoouGoJ8Wj6CDrMBQ4SB2F/ggpl5/+Y=
-github.com/sandertv/gophertunnel v1.24.13 h1:ezPTNCwVDuM07jOVlsO/vbdo1uqGreb+ki2kmJ/zSD8=
-github.com/sandertv/gophertunnel v1.24.13/go.mod h1:dYFetA6r62huhc1EgR9p8VFAFtKOuGgVE/iXf5CzZ4o=
+github.com/sandertv/gophertunnel v1.25.0 h1:XvHDhYtfn2B3TgCl2KqzD0Ifhefb7L7jIH/EUndEBXw=
+github.com/sandertv/gophertunnel v1.25.0/go.mod h1:dYFetA6r62huhc1EgR9p8VFAFtKOuGgVE/iXf5CzZ4o=
 github.com/sirupsen/logrus v1.9.0 h1:trlNQbNUG3OdDrDil03MCb1H2o9nJ1x4/5LYw7byDE0=
 github.com/sirupsen/logrus v1.9.0/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
