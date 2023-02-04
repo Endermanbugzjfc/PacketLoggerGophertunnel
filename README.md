@@ -70,8 +70,8 @@ Please create a `config.toml` in the working directory of an app instance.
   ShowPacketType = ["ActorEvent", "ActorPickRequest", "(Look at https://pkg.go.dev/github.com/sandertv/gophertunnel@v1.19.9/minecraft/protocol/packet#pkg-index)"]
 
   [PacketLogger.ReportHiddenPacketCountDelay]
-    Receive = "5s"
-    Send = "5s"
+    Receive = 5000000000
+    Send = 5000000000
 
 [Reload]
   ConfigAutoReload = false
