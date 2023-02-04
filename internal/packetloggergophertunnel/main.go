@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +14,7 @@ import (
 	"github.com/df-mc/atomic"
 	"github.com/fsnotify/fsnotify"
 	_ "github.com/icza/bitio"
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/auth"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -35,6 +34,14 @@ var (
 	showPacketTypeMu sync.RWMutex
 )
 
+type authMessageWriter chan *oauth2.Token
+
+func (authMessageWriter) Write(message []byte) (int, error) {
+	fmt.Println(string(message))
+	fmt.Println("Press enter to skip this step, if the target server does not require authentication (online mode = off).")
+	return 0, nil
+}
+
 // The following program implements a proxy that forwards players from one local address to a remote address.
 func main() {
 	findPacketTypeReferencePackageVersion()
@@ -46,11 +53,28 @@ func main() {
 
 	const configPath = "config.toml"
 	c := readConfig(configPath)
-	token, err := auth.RequestLiveToken()
-	if err != nil {
-		panic(err)
-	}
-	src := auth.RefreshTokenSource(token)
+	writer := make(authMessageWriter, 1)
+	var src oauth2.TokenSource
+	skip := make(chan struct{}, 1)
+	go func() {
+		if token, err := auth.RequestLiveTokenWriter(writer); err != nil {
+			logrus.Errorf("Authentication failed: %s", err)
+		} else {
+			src = auth.RefreshTokenSource(token)
+		}
+		if skip != nil {
+			close(skip)
+			skip = nil
+		}
+	}()
+	go func() {
+		fmt.Scanln()
+		if skip != nil {
+			close(skip)
+			skip = nil
+		}
+	}()
+	<-skip
 
 	p, err := minecraft.NewForeignStatusProvider(c.Connection.RemoteAddress)
 	if err != nil {
@@ -77,7 +101,7 @@ func main() {
 	*/
 	loggerContexts := []loggerContext{
 		{
-			Prefix: "[Recieve] ",
+			Prefix: "[Receive] ",
 		},
 		{
 			Prefix: "[Send] ",
@@ -130,7 +154,11 @@ func main() {
 		go f(c)
 	}
 
-	logrus.Info("Starting local proxy...")
+	if src != nil {
+		logrus.Info("Starting local proxy with authentication...")
+	} else {
+		logrus.Warn("Starting local proxy WITHOUT authentication...")
+	}
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -357,9 +385,9 @@ func (context loggerContext) PacketToLog(pk packet.Packet) (text string, err err
 				err = err2
 				text += err.Error()
 			} else {
-				text += prefix + " BEGIN " + suffix + "\n"
+				text += prefix + "BEGIN " + suffix + "\n"
 				text += string(pkMarshal)
-				text += prefix + " END " + suffix
+				text += prefix + "END " + suffix
 			}
 			return
 		}
