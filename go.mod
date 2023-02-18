@@ -7,7 +7,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/icza/bitio v1.1.0
 	github.com/pelletier/go-toml/v2 v2.0.6
-	github.com/sandertv/gophertunnel v1.27.2
+	github.com/sandertv/gophertunnel v1.27.3
 	github.com/sirupsen/logrus v1.9.0
 	golang.org/x/oauth2 v0.4.0
 )
