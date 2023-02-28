@@ -7,7 +7,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/icza/bitio v1.1.0
 	github.com/pelletier/go-toml/v2 v2.0.6
-	github.com/sandertv/gophertunnel v1.27.2
+	github.com/sandertv/gophertunnel v1.27.4
 	github.com/sirupsen/logrus v1.9.0
 	golang.org/x/oauth2 v0.4.0
 )
@@ -23,8 +23,8 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/image v0.5.0 // indirect
-	golang.org/x/net v0.5.0 // indirect
-	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
