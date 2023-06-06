@@ -8,7 +8,7 @@ require (
 	github.com/icza/bitio v1.1.0
 	github.com/pelletier/go-toml/v2 v2.0.7
 	github.com/sandertv/gophertunnel v1.29.0
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/oauth2 v0.7.0
 )
 
